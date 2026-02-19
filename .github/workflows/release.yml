@@ -40,15 +40,15 @@ jobs:
 
       - name: Package Plugin into ZIP
         run: |
-          mkdir batch-button
-          cp main.js batch-button/
-          cp manifest.json batch-button/
-          zip -r batch-button.zip batch-button
+          mkdir cmd-button
+          cp main.js cmd-button/
+          cp manifest.json cmd-button/
+          zip -r cmd-button.zip cmd-button
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: batch-button.zip
+          files: cmd-button.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
