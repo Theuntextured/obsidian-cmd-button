@@ -2,9 +2,9 @@ name: Release Batch Button Plugin
 
 on:
   push:
-    # This ensures the workflow only runs when you push a tag (e.g., v1.0.0)
     tags:
       - "*"
+  workflow_dispatch:
 
 jobs:
   build-and-release:
@@ -31,7 +31,6 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          # Automatically attaches the compiled files to the release page
           files: |
             main.js
             manifest.json
