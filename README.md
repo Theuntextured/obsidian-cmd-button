@@ -54,7 +54,7 @@ The plugin integrates cleanly with Obsidian's native CSS variables so it looks g
 
 ## Installation
 
-1. Download the latest release from the [releases page](https://github.com/Theuntextured/obsidian-cmd-button/releases).
+1. Download the [latest release](https://github.com/Theuntextured/obsidian-cmd-button/releases/latest).
 2. Inside your Obsidian vault, navigate to `.obsidian/plugins/`.
 4. Unzip the archive you downloaded in here.
 5. Reload Obsidian and enable **CMD Button** in the Community Plugins settings tab.
