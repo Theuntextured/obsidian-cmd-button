@@ -3,7 +3,7 @@
 	"name": "CMD Button",
 	"version": "dev",
 	"minAppVersion": "0.15.0",
-	"description": "Allows for the creation of a button which runs a Windows CMD script.",
+	"description": "Allows for the creation of a button which runs a Windows batch script.",
 	"author": "The untextured",
 	"authorUrl": "https://github.com/Theuntextured/obsidian-cmd-button",
 	"isDesktopOnly": true
