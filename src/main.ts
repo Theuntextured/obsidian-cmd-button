@@ -1,99 +1,205 @@
-import {App, Editor, MarkdownView, Modal, Notice, Plugin} from 'obsidian';
-import {DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab} from "./settings";
+import { Plugin, Notice, App, PluginSettingTab, Setting } from 'obsidian';
 
-// Remember to rename these classes and interfaces!
+// Bypass TypeScript strict type checking for Node.js modules
+declare const require: any;
+const { exec } = require('child_process');
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
-
-	async onload() {
-		await this.loadSettings();
-
-		// This creates an icon in the left ribbon.
-		this.addRibbonIcon('dice', 'Sample', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status bar text');
-
-		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-modal-simple',
-			name: 'Open modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'replace-selected',
-			name: 'Replace selected content',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				editor.replaceSelection('Sample editor command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-modal-complex',
-			name: 'Open modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-				return false;
-			}
-		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			new Notice("Click");
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
-
-	}
-
-	onunload() {
-	}
-
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<MyPluginSettings>);
-	}
-
-	async saveSettings() {
-		await this.saveData(this.settings);
-	}
+interface BatchButtonSettings {
+    textColor: string;
+    borderWidth: string;
+    borderColor: string;
+    scale: string;
+    defaultJustify: string;
+    borderRadius: string;
 }
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
+const DEFAULT_SETTINGS: BatchButtonSettings = {
+    textColor: 'var(--text-accent)',
+    borderWidth: '1px',
+    borderColor: 'var(--background-modifier-border)',
+    scale: '1',
+    defaultJustify: 'centre',
+    borderRadius: "0.3"
+};
 
-	onOpen() {
-		let {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
+export default class BatchButtonPlugin extends Plugin {
+    settings: BatchButtonSettings;
 
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
-	}
+    async onload() {
+        await this.loadSettings();
+        
+        // Expose our new UI in the Obsidian settings panel
+        this.addSettingTab(new BatchButtonSettingTab(this.app, this));
+
+        this.registerMarkdownCodeBlockProcessor("batchbutton", (source, el, ctx) => {
+            const lines = source.split('\n');
+            let label = "Execute";
+            let command = "";
+            let justify = this.settings.defaultJustify;
+
+            // Parse the code block parameters
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (trimmed.startsWith("label:")) label = trimmed.substring(6).trim();
+                if (trimmed.startsWith("command:")) command = trimmed.substring(8).trim();
+                if (trimmed.startsWith("justify:")) justify = trimmed.substring(8).trim().toLowerCase();
+            }
+
+            // Create a flex container to handle alignment
+            const container = el.createEl("div");
+            container.style.display = "flex";
+            container.style.width = "100%";
+            
+            // Handle justification
+            if (justify === "center" || justify === "centre") container.style.justifyContent = "center";
+            else if (justify === "right") container.style.justifyContent = "flex-end";
+            else container.style.justifyContent = "flex-start";
+
+            // Render the button into the container
+            const btn = container.createEl("button", { text: label });
+
+            // Apply the aesthetic styling dynamically from settings
+            btn.style.backgroundColor = "transparent";
+            btn.style.border = `${this.settings.borderWidth} solid ${this.settings.borderColor}`;
+            btn.style.color = this.settings.textColor;
+            btn.style.cursor = "pointer";
+            btn.style.fontWeight = "500";
+            btn.style.boxShadow = "none";
+
+            // Use native CSS flow scaling instead of transform to prevent clipping
+            const scaleFactor = parseFloat(this.settings.scale) || 1;
+            const borderRadius = parseFloat(this.settings.borderRadius)
+            btn.style.fontSize = `${scaleFactor}em`;
+            btn.style.padding = `${0.4 * scaleFactor}em ${1.5 * scaleFactor}em`; 
+            btn.style.borderRadius = `${borderRadius * 0.5}em`; 
+
+            // Hover effects
+            btn.addEventListener("mouseenter", () => btn.style.backgroundColor = "var(--background-modifier-hover)");
+            btn.addEventListener("mouseleave", () => btn.style.backgroundColor = "transparent");
+
+            // Resolve the absolute Windows path of the current note
+            // @ts-ignore (Bypasses TS warning for internal Obsidian API)
+            const basePath = this.app.vault.adapter.getBasePath();
+            const absoluteFilePath = require('path').join(basePath, ctx.sourcePath);
+
+            // Replace the magic variable with the wrapped file path
+            const finalCommand = command.replace(/%file%/ig, `"${absoluteFilePath}"`);
+
+            // Execution logic
+            btn.onclick = () => {
+                if (!finalCommand) {
+                    new Notice("BatchButton Error: No command specified.");
+                    return;
+                }
+
+                new Notice(`Executing: ${label}...`);
+
+                exec(finalCommand, { cwd: basePath }, (error: any, stdout: string, stderr: string) => {
+                    if (error) {
+                        console.error(`BatchButton Error: ${error.message}`);
+                        return new Notice(`Failed to execute ${label}. Check developer console.`);
+                    }
+                    
+                    if (stdout) console.log(stdout);
+                    if (stderr) console.error(stderr);
+                    
+                    return new Notice(`${label} completed successfully!`);
+                });
+            };
+        });
+    }
+
+    onunload() {}
+
+    async loadSettings() {
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    }
+
+    async saveSettings() {
+        await this.saveData(this.settings);
+    }
+}
+
+// --- SETTINGS UI ---
+
+class BatchButtonSettingTab extends PluginSettingTab {
+    plugin: BatchButtonPlugin;
+
+    constructor(app: App, plugin: BatchButtonPlugin) {
+        super(app, plugin);
+        this.plugin = plugin;
+    }
+
+    display(): void {
+        const {containerEl} = this;
+        containerEl.empty();
+
+        new Setting(containerEl)
+            .setName('Text Colour')
+            .setDesc('CSS value for the text colour (e.g. #FFFFFF, red, var(--text-accent)).')
+            .addText(text => text
+                .setPlaceholder('var(--text-accent)')
+                .setValue(this.plugin.settings.textColor)
+                .onChange(async (value) => {
+                    this.plugin.settings.textColor = value || DEFAULT_SETTINGS.textColor;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Border Width')
+            .setDesc('Thickness of the border (e.g. 1px, 2px).')
+            .addText(text => text
+                .setPlaceholder('1px')
+                .setValue(this.plugin.settings.borderWidth)
+                .onChange(async (value) => {
+                    this.plugin.settings.borderWidth = value || DEFAULT_SETTINGS.borderWidth;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Border Colour')
+            .setDesc('CSS value for the border colour.')
+            .addText(text => text
+                .setPlaceholder('var(--background-modifier-border)')
+                .setValue(this.plugin.settings.borderColor)
+                .onChange(async (value) => {
+                    this.plugin.settings.borderColor = value || DEFAULT_SETTINGS.borderColor;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Button Scale')
+            .setDesc('Multiplier for button size (1 = normal, 1.5 = 50% larger).')
+            .addText(text => text
+                .setPlaceholder('1')
+                .setValue(this.plugin.settings.scale)
+                .onChange(async (value) => {
+                    this.plugin.settings.scale = value || '1';
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Default Justification')
+            .setDesc('Where the button aligns if not specified in the markdown block.')
+            .addDropdown(drop => drop
+                .addOption('left', 'Left')
+                .addOption('centre', 'Centre')
+                .addOption('right', 'Right')
+                .setValue(this.plugin.settings.defaultJustify)
+                .onChange(async (value) => {
+                    this.plugin.settings.defaultJustify = value;
+                    await this.plugin.saveSettings();
+                }));
+        
+        new Setting(containerEl)
+            .setName('Border Radius')
+            .setDesc('Border Radius 0..1')
+            .addText(text => text
+                .setPlaceholder('0.5')
+                .setValue(this.plugin.settings.borderRadius)
+                .onChange(async (value) => {
+                    this.plugin.settings.borderRadius = value || '0.5';
+                    await this.plugin.saveSettings();
+                }));
+    }
 }
