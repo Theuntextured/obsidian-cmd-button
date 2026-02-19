@@ -28,12 +28,27 @@ jobs:
       - name: Compile TypeScript
         run: npm run build
 
+      - name: Sync Version from Tag
+        run: |
+          node -e "
+            const fs = require('fs');
+            const version = process.env.GITHUB_REF_NAME.replace(/^v/, '');
+            const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+            manifest.version = version;
+            fs.writeFileSync('manifest.json', JSON.stringify(manifest, null, '\t'));
+          "
+
+      - name: Package Plugin into ZIP
+        run: |
+          mkdir batch-button
+          cp main.js batch-button/
+          cp manifest.json batch-button/
+          zip -r batch-button.zip batch-button
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            main.js
-            manifest.json
+          files: batch-button.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
