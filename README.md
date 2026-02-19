@@ -41,7 +41,7 @@ command: python document_parser.py %file%
 ```
 ````
 
-The plugin will dynamically replace `%file%` with the absolute Windows path of the active note, automatically wrapped in quotes to protect against spaces in your folder names (e.g., `"D:\My Vault\Current Note.md"`).
+The plugin will dynamically replace `%file%` with the absolute Windows path of the active note, automatically wrapped in quotes to protect against spaces in your folder names (e.g., `"C:\My Vault\Current Note.md"`).
 
 ## Appearance Settings
 
@@ -54,10 +54,9 @@ The plugin integrates cleanly with Obsidian's native CSS variables so it looks g
 
 ## Installation
 
-1. Download the latest release from the repository.
+1. Download the latest release from the [releases page](https://github.com/Theuntextured/obsidian-cmd-button/releases).
 2. Inside your Obsidian vault, navigate to `.obsidian/plugins/`.
-3. Create a new folder named `batch-button`.
-4. Place the `main.js` and `manifest.json` files inside this new folder.
+4. Unzip the archive you downloaded in here.
 5. Reload Obsidian and enable **CMD Button** in the Community Plugins settings tab.
 
 *Disclaimer: This plugin executes raw shell commands on your operating system. Do not execute buttons from untrusted markdown files.*
